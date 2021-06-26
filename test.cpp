@@ -143,6 +143,11 @@ std::string allocandFreeMerge(void *array[MAX_ALLOC]) {
 	return expected;
 }
 
+/**
+ * test if the info was copied to the right place
+ * @param array
+ * @return
+ */
 std::string testRealloc(void *array[MAX_ALLOC]) {
 	std::string block_of2 = std::to_string(2 * 10 + sizeof(Metadata3));
 	std::string expected = "aaaaaaaaaa|U:" + block_of2;
@@ -180,6 +185,7 @@ std::string testRealloc(void *array[MAX_ALLOC]) {
 
 /**
  * test if we used the small option for realloc
+ * and if the info was copied to the right place
  * @param array
  * @return
  */
@@ -395,7 +401,8 @@ std::string testBadArgs(void *array[MAX_ALLOC]) {
 #ifdef USE_COLORS
 #define PRED(x) FRED(x)
 #define PGRN(x) FGRN(x)
-#elif
+#endif
+#ifndef USE_COLORS
 #define PRED(x) x
 #define PGRN(x) x
 #endif
