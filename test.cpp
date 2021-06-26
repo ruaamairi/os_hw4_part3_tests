@@ -26,7 +26,7 @@ typedef struct MallocMetadata3 {
 ///////////////////////////////////////////////////
 
 
-#define NUM_FUNC 8
+#define NUM_FUNC 11
 
 typedef std::string (*TestFunc)(void *[MAX_ALLOC]);
 
@@ -334,9 +334,61 @@ std::string testCalloc(void *array[MAX_ALLOC]) {
 }
 
 
+std::string testFreeAllAndMerge(void *array[MAX_ALLOC]) {
+	if (MAX_ALLOC > 10e8) {
+		std::cout << "Test Wont work with MAX_ALLOC > 10e8";
+		return "";
+	}
+	int allsize = 0;
+	for (int i = 0 ; i < MAX_ALLOC ; ++i) {
+		array[i] = smalloc(i + 1);
+		if (!array[i]) {
+			std::cout << "Failed to allocate INDEX: " << i << std::endl;
+			return "";
+		}
+		allsize += i + 1 + (int) sizeof(Metadata3);
+	}
+	allsize -= (int) sizeof(Metadata3);
+	std::string expected = "|F:" + std::to_string(allsize) + "|\n";
+
+	for (int i = 0 ; i < MAX_ALLOC ; ++i) {
+		sfree(array[i]);
+	}
+
+	printMemory<Metadata3>(memory_start_addr, true);
+	return expected;
+}
+
+
+std::string testInit(void *array[MAX_ALLOC]) {
+	std::string expected = "|F:1|\n|U:2|\n";
+	printMemory<Metadata3>(memory_start_addr, true);
+	array[0] = smalloc(2);
+	printMemory<Metadata3>(memory_start_addr, true);
+	return expected;
+}
+
+std::string testBadArgs(void *array[MAX_ALLOC]) {
+	std::string expected = "";
+	size_t options[3] = {static_cast<size_t>(-1), 0, static_cast<size_t>(10e8 + 1)};
+	array[9] = smalloc(1);
+	for (size_t option : options) {
+		array[0] = smalloc(option);
+		array[1] = scalloc(option, 1);
+		array[2] = scalloc(1, option);
+		array[3] = srealloc(array[9], option);
+		if (array[0] || array[1] || array[2]|| array[3]) {
+			std::cout << "missed edge case: "<< std::to_string(option) << std::endl;
+		}
+	}
+
+	return expected;
+}
+
+
 /////////////////////////////////////////////////////
 void *getMemoryStart() {
-	void *first = smalloc(2);
+	void *first = smalloc(1);
 	if (!first) { return nullptr; }
 	void *start = (char *) first - sizeof(Metadata3);
 	sfree(first);
@@ -379,9 +431,12 @@ bool checkFunc(std::string (*func)(void *[MAX_ALLOC]), void *array[MAX_ALLOC], s
 }
 /////////////////////////////////////////////////////
 
-TestFunc functions[NUM_FUNC] = {allocNoFree, allocandFree, allocandFreeMerge, testRealloc, testRealloc2, testWild, testSplitAndMerge, testCalloc};
-std::string function_names[NUM_FUNC] = {"allocNoFree", "allocandFree", "allocandFreeMerge", "testRealloc", "testRealloc2", "testWild",
-										"testSplitAndMerge", "testCalloc"};
+TestFunc functions[NUM_FUNC] = {testInit, allocNoFree, allocandFree, testFreeAllAndMerge, allocandFreeMerge, testRealloc, testRealloc2, testWild,
+								testSplitAndMerge, testCalloc,testBadArgs};
+std::string function_names[NUM_FUNC] = {"testInit", "allocNoFree", "allocandFree", "testFreeAllAndMerge", "allocandFreeMerge", "testRealloc",
+										"testRealloc2",
+										"testWild",
+										"testSplitAndMerge", "testCalloc","testBadArgs"};
 
 
 void initTests() {
@@ -397,8 +452,8 @@ void initTests() {
 	std::string header = "TEST NAME";
 	std::string line = "";
 	int offset = (max_test_name_len - (int) header.length()) / 2;
-	header.insert (0, offset, ' ');
-	line.insert(0,max_test_name_len + 9,'-');
+	header.insert(0, offset, ' ');
+	line.insert(0, max_test_name_len + 9, '-');
 	std::cout << line << std::endl;
 	printTestName(header);
 	std::cout << " STATUS" << std::endl;
@@ -410,10 +465,16 @@ int main() {
 	void *allocations[MAX_ALLOC];
 	initTests();
 	int wait_status;
+	bool ans;
 	for (int i = 0 ; i < NUM_FUNC ; ++i) {
 		pid_t pid = fork();
 		if (pid == 0) {
-			checkFunc(functions[i], allocations, function_names[i]);
+			ans = checkFunc(functions[i], allocations, function_names[i]);
+			if (i == 0 && !ans) {
+				std::cerr << "Init Failed , ignore all other tests" << std::endl;
+				std::cerr << "The test get the start of the memory list using an allocation of size 1 and free it right after" << std::endl;
+				std::cerr << "If this failed you didnt increase it to allocate the next one (Wilderness)" << std::endl;
+			}
 			exit(0);
 		} else {
 			wait(&wait_status);
@@ -429,6 +490,7 @@ int main() {
 			}
 		}
 	}
+
 
 	return 0;
 }
