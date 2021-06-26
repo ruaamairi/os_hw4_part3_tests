@@ -38,11 +38,19 @@ void *memory_start_addr;
 
 int max_test_name_len;
 
+int size_of_metadata;
+
+int default_block_size;
+
+std::string default_block;
+std::string block_of_2;
+std::string block_of_3;
+
 #define DO_MALLOC(x) do{ \
-		if(!(x)){                \
+        if(!(x)){                \
            std::cout << "Failed to allocate at line: "<< __LINE__ << ". command: "<< std::endl << #x << std::endl; \
-		   exit(1) ;\
-		}				\
+           exit(1) ;\
+        }                \
 }while(0)
 
 ///////////////test functions/////////////////////
@@ -75,9 +83,9 @@ std::string allocandFree(void *array[MAX_ALLOC]) {
 	std::string expected = "";
 	for (int i = 0 ; i < MAX_ALLOC ; ++i) {
 		if (i % 5 == 0) {
-			expected += "|F:10";
+			expected += "|F:" + default_block;
 		} else {
-			expected += "|U:10";
+			expected += "|U:" + default_block;
 		}
 	}
 	expected += "|\n";
@@ -88,7 +96,7 @@ std::string allocandFree(void *array[MAX_ALLOC]) {
 	}
 
 	for (int i = 0 ; i < MAX_ALLOC ; ++i) {
-		DO_MALLOC(array[i] = smalloc(10));
+		DO_MALLOC(array[i] = smalloc(default_block_size));
 	}
 	for (int i = 0 ; i < MAX_ALLOC ; i += 5) {
 		sfree(array[i]);
@@ -100,20 +108,18 @@ std::string allocandFree(void *array[MAX_ALLOC]) {
 
 std::string allocandFreeMerge(void *array[MAX_ALLOC]) {
 
-	std::string block_of2 = std::to_string(2 * 10 + sizeof(Metadata3));
-	std::string block_of3 = std::to_string(3 * 10 + 2 * sizeof(Metadata3));
 	std::string expected = "";
 	int j = 1;
 	for (; j + 8 < MAX_ALLOC ; j += 10) {
-		expected += "|U:10";
-		expected += "|F:" + block_of2;
-		expected += "|U:10";
-		expected += "|F:" + block_of2;
-		expected += "|U:10";
-		expected += "|F:" + block_of3;
+		expected += "|U:" + default_block;
+		expected += "|F:" + block_of_2;
+		expected += "|U:" + default_block;
+		expected += "|F:" + block_of_2;
+		expected += "|U:" + default_block;
+		expected += "|F:" + block_of_3;
 	}
 	for (; j - 1 < MAX_ALLOC ; ++j) {
-		expected += "|U:10";
+		expected += "|U:" + default_block;
 	}
 	expected += "|\n";
 
@@ -123,7 +129,7 @@ std::string allocandFreeMerge(void *array[MAX_ALLOC]) {
 	}
 
 	for (int i = 0 ; i < MAX_ALLOC ; ++i) {
-		DO_MALLOC(array[i] = smalloc(10));
+		DO_MALLOC(array[i] = smalloc(default_block_size));
 	}
 	for (int i = 1 ; i + 8 < MAX_ALLOC ; i += 10) {
 		sfree(array[i]);
@@ -151,10 +157,9 @@ std::string allocandFreeMerge(void *array[MAX_ALLOC]) {
  * @return
  */
 std::string testRealloc(void *array[MAX_ALLOC]) {
-	std::string block_of2 = std::to_string(2 * 10 + sizeof(Metadata3));
-	std::string expected = "aaaaaaaaaa|U:" + block_of2;
+	std::string expected = "aaaaaaaaaa|U:" + block_of_2;
 	for (int i = 2 ; i < MAX_ALLOC ; ++i) {
-		expected += "|U:10";
+		expected += "|U:" + default_block;
 	}
 	expected += "|\n";
 
@@ -164,7 +169,7 @@ std::string testRealloc(void *array[MAX_ALLOC]) {
 	}
 
 	for (int i = 0 ; i < MAX_ALLOC ; ++i) {
-		DO_MALLOC(array[i] = smalloc(10));
+		DO_MALLOC(array[i] = smalloc(default_block_size));
 	}
 
 	for (int i = 0 ; i < 10 ; ++i) {
@@ -172,7 +177,7 @@ std::string testRealloc(void *array[MAX_ALLOC]) {
 		((char *) array[1])[i] = 'a';
 	}
 	sfree(array[0]);
-	DO_MALLOC(array[1] = srealloc(array[1], 20));
+	DO_MALLOC(array[1] = srealloc(array[1], default_block_size * 2));
 	for (int i = 0 ; i < 10 ; ++i) {
 		std::cout << ((char *) array[0])[i];
 	}
@@ -188,15 +193,16 @@ std::string testRealloc(void *array[MAX_ALLOC]) {
  * @return
  */
 std::string testRealloc2(void *array[MAX_ALLOC]) {
-	std::string expected = "bbbbbbbbbb";
+	std::string expected = "";
 	for (int i = 0 ; i < MAX_ALLOC ; ++i) {
 		if (i == 3 || i == 5 || i == 7 || i == 9) {
-			expected += "|F:10";
+			expected += "|F:" + default_block;
 		} else {
-			expected += "|U:10";
+			expected += "|U:" + default_block;
 		}
 	}
-	expected += "|F:30|U:40|U:20|\n";
+	expected += "|F:" + std::to_string(default_block_size * 3) + "|U:" + std::to_string(default_block_size * 4) + "|U:" +
+				std::to_string(default_block_size * 2) + "|\n";
 
 	if (MAX_ALLOC < 10) {
 		std::cout << "Test Wont work with MAX_ALLOC < 10";
@@ -204,17 +210,17 @@ std::string testRealloc2(void *array[MAX_ALLOC]) {
 	}
 
 	for (int i = 0 ; i < MAX_ALLOC ; ++i) {
-		DO_MALLOC(array[i] = smalloc(10));
+		DO_MALLOC(array[i] = smalloc(default_block_size));
 	}
 
 	sfree(array[5]);
-	DO_MALLOC(array[5] = smalloc(30));
+	DO_MALLOC(array[5] = smalloc(default_block_size * 3));
 	sfree(array[9]);
-	DO_MALLOC(array[9] = smalloc(40));
+	DO_MALLOC(array[9] = smalloc(default_block_size * 4));
 	sfree(array[7]);
-	DO_MALLOC(array[7] = smalloc(20));
+	DO_MALLOC(array[7] = smalloc(default_block_size * 2));
 
-	for (int i = 0 ; i < 10 ; ++i) {
+	for (int i = 0 ; i < default_block_size ; ++i) {
 		((char *) array[3])[i] = 'b';
 		((char *) array[5])[i] = 'a';
 		((char *) array[7])[i] = 'd';
@@ -222,9 +228,12 @@ std::string testRealloc2(void *array[MAX_ALLOC]) {
 	sfree(array[5]);
 	sfree(array[7]);
 
-	DO_MALLOC(array[3] = srealloc(array[3], 20));
-	for (int i = 0 ; i < 10 ; ++i) {
-		std::cout << ((char *) array[7])[i];
+	DO_MALLOC(array[3] = srealloc(array[3], default_block_size * 2));
+	for (int i = 0 ; i < default_block_size ; ++i) {
+		if (((char *) array[7])[i] != 'b') {
+			std::cout << "realloc didnt copy the char b to index " << i << std::endl;
+			break;
+		}
 	}
 
 	printMemory<Metadata3>(memory_start_addr, true);
@@ -234,10 +243,10 @@ std::string testRealloc2(void *array[MAX_ALLOC]) {
 std::string testWild(void *array[MAX_ALLOC]) {
 	std::string expected = "";
 	for (int i = 0 ; i < MAX_ALLOC - 10 ; ++i) {
-		expected += "|U:10";
+		expected += "|U:" + default_block;
 	}
-	expected += "|U:30";
-	expected += "|U:20|\n";
+	expected += "|U:" + std::to_string(default_block_size * 3);
+	expected += "|U:" + std::to_string(default_block_size * 2) + "|\n";
 
 	if (MAX_ALLOC < 10) {
 		std::cout << "Test Wont work with MAX_ALLOC < 10";
@@ -245,21 +254,40 @@ std::string testWild(void *array[MAX_ALLOC]) {
 	}
 
 	for (int i = 0 ; i < MAX_ALLOC - 9 ; ++i) {
-		DO_MALLOC(array[i] = smalloc(10));
+		DO_MALLOC(array[i] = smalloc(default_block_size));
 	}
 
 	sfree(array[MAX_ALLOC - 10]);
-	DO_MALLOC(array[MAX_ALLOC - 10] = smalloc(30));
-	DO_MALLOC(array[MAX_ALLOC - 9] = smalloc(10));
-	DO_MALLOC(array[MAX_ALLOC - 9] = srealloc(array[MAX_ALLOC - 9], 20));
+	DO_MALLOC(array[MAX_ALLOC - 10] = smalloc(default_block_size * 3));
+	DO_MALLOC(array[MAX_ALLOC - 9] = smalloc(default_block_size));
+	DO_MALLOC(array[MAX_ALLOC - 9] = srealloc(array[MAX_ALLOC - 9], default_block_size * 2));
 
 	printMemory<Metadata3>(memory_start_addr, true);
 	return expected;
 }
 
 std::string testSplitAndMerge(void *array[MAX_ALLOC]) {
-	std::string expected = "|U:30|F:" + std::to_string(200 - 30 - sizeof(Metadata3));
-	expected += "|U:200|U:200|U:230|U:230|F:140|F:200|U:200|U:200|U:230|F:170|U:200|U:230|F:170|U:200|U:200|U:200|U:200|U:200|U:200|U:200|U:200|U:200|\n";
+	int small_part_of_block = default_block_size / 3;
+	std::string expected =
+			"|U:" + std::to_string(small_part_of_block) + "|F:" + std::to_string(default_block_size - small_part_of_block - size_of_metadata);
+	expected += "|U:" + default_block;
+	expected += "|U:" + default_block;
+	expected += "|U:" + std::to_string(small_part_of_block + default_block_size);
+	expected += "|U:" + std::to_string(small_part_of_block + default_block_size);
+	expected += "|F:" + std::to_string(default_block_size - 2 * small_part_of_block);
+	expected += "|F:" + default_block;
+	expected += "|U:" + default_block;
+	expected += "|U:" + default_block;
+	expected += "|U:" + std::to_string(small_part_of_block + default_block_size);
+	expected += "|F:" + std::to_string(default_block_size - small_part_of_block);
+	expected += "|U:" + default_block;
+	expected += "|U:" + std::to_string(small_part_of_block + default_block_size);
+	expected += "|F:" + std::to_string(default_block_size - small_part_of_block);
+	for (int i = 14 ; i < MAX_ALLOC ; ++i) {
+		expected += "|U:" + default_block;
+	}
+	expected += "|\n";;
+
 
 	if (MAX_ALLOC < 14) {
 		std::cout << "Test Wont work with MAX_ALLOC < 14";
@@ -267,21 +295,21 @@ std::string testSplitAndMerge(void *array[MAX_ALLOC]) {
 	}
 
 	for (int i = 0 ; i < MAX_ALLOC ; ++i) {
-		DO_MALLOC(array[i] = smalloc(200));
+		DO_MALLOC(array[i] = smalloc(default_block_size));
 	}
 
 	sfree(array[0]);
-	DO_MALLOC(smalloc(30));
+	DO_MALLOC(smalloc(default_block_size / 3));
 	sfree(array[3]);
 	sfree(array[6]);
-	DO_MALLOC(srealloc(array[4], 230));
-	DO_MALLOC(srealloc(array[5], 230));
+	DO_MALLOC(srealloc(array[4], default_block_size + default_block_size / 3));
+	DO_MALLOC(srealloc(array[5], default_block_size + default_block_size / 3));
 
 	sfree(array[10]);
-	DO_MALLOC(srealloc(array[9], 230));
+	DO_MALLOC(srealloc(array[9], default_block_size + default_block_size / 3));
 
 	sfree(array[12]);
-	DO_MALLOC(srealloc(array[13], 230));
+	DO_MALLOC(srealloc(array[13], default_block_size + default_block_size / 3));
 
 
 	printMemory<Metadata3>(memory_start_addr, true);
@@ -441,6 +469,17 @@ std::string function_names[NUM_FUNC] = {"testInit", "allocNoFree", "allocandFree
 
 void initTests() {
 	DO_MALLOC(memory_start_addr = getMemoryStart());
+	size_of_metadata = sizeof(Metadata3);
+	default_block_size = 4 * (size_of_metadata + (4 * 128)); // big enugh to split a lot
+	if (default_block_size * 3 + size_of_metadata * 2 >= 128 * 1024) {
+		default_block_size /= 2;
+		std::cerr << "Metadata may be to big for some of the tests" << std::endl;
+	}
+
+	default_block = std::to_string(default_block_size);
+	block_of_2 = std::to_string(default_block_size * 2 + size_of_metadata);
+	block_of_3 = std::to_string(default_block_size * 3 + size_of_metadata * 2);
+
 	max_test_name_len = function_names[0].length();
 	for (int i = 0 ; i < NUM_FUNC ; ++i) {
 		if (max_test_name_len < (int) function_names[i].length()) {
@@ -461,7 +500,7 @@ void initTests() {
 
 }
 
-void printInitFail(){
+void printInitFail() {
 	std::cerr << "Init Failed , ignore all other tests" << std::endl;
 	std::cerr << "The test get the start of the memory list using an allocation of size 1 and free it right after" << std::endl;
 	std::cerr << "If this failed you didnt increase it to allocate the next one (Wilderness)" << std::endl;
