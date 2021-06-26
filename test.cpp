@@ -13,7 +13,7 @@
 #define MAX_ALLOC 23
 
 // Copy your type here
-// dont change anything from the one in malloc_3.c !!not even the order of args!!!
+// don't change anything from the one in malloc_3.c !!not even the order of args!!!
 typedef struct MallocMetadata3 {
 	size_t size;
 	bool is_free;
