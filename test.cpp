@@ -7,10 +7,14 @@
 #include <sys/wait.h>
 #include "printMemoryList.h"
 #include "malloc_3.h"
+#include "colors.h"
 
 /////////////////////////////////////////////////////
 
 #define MAX_ALLOC 23
+
+//if you see garbage when printing remove this line or comment it
+#define USE_COLORS
 
 // Copy your type here
 // don't change anything from the one in malloc_3.c !!not even the order of args!!!
@@ -377,8 +381,8 @@ std::string testBadArgs(void *array[MAX_ALLOC]) {
 		array[1] = scalloc(option, 1);
 		array[2] = scalloc(1, option);
 		array[3] = srealloc(array[9], option);
-		if (array[0] || array[1] || array[2]|| array[3]) {
-			std::cout << "missed edge case: "<< std::to_string(option) << std::endl;
+		if (array[0] || array[1] || array[2] || array[3]) {
+			std::cout << "missed edge case: " << std::to_string(option) << std::endl;
 		}
 	}
 
@@ -387,6 +391,15 @@ std::string testBadArgs(void *array[MAX_ALLOC]) {
 
 
 /////////////////////////////////////////////////////
+
+#ifdef USE_COLORS
+#define PRED(x) FRED(x)
+#define PGRN(x) FGRN(x)
+#elif
+#define PRED(x) x
+#define PGRN(x) x
+#endif
+
 void *getMemoryStart() {
 	void *first = smalloc(1);
 	if (!first) { return nullptr; }
@@ -419,24 +432,24 @@ bool checkFunc(std::string (*func)(void *[MAX_ALLOC]), void *array[MAX_ALLOC], s
 	std::cout.rdbuf(prevcoutbuf);
 	if (result != 0) {
 		printTestName(test_name);
-		std::cout << ": FAIL" << std::endl;
+		std::cout << ": " << PRED("FAIL") << std::endl;
 		std::cout << "expected: '" << expected << "\'" << std::endl;
 		std::cout << "recived:  '" << text << "\'" << std::endl;
 		return false;
 	} else {
 		printTestName(test_name);
-		std::cout << ": PASS" << std::endl;
+		std::cout << ": " << PGRN("PASS") << std::endl;
 	}
 	return true;
 }
 /////////////////////////////////////////////////////
 
 TestFunc functions[NUM_FUNC] = {testInit, allocNoFree, allocandFree, testFreeAllAndMerge, allocandFreeMerge, testRealloc, testRealloc2, testWild,
-								testSplitAndMerge, testCalloc,testBadArgs};
+								testSplitAndMerge, testCalloc, testBadArgs};
 std::string function_names[NUM_FUNC] = {"testInit", "allocNoFree", "allocandFree", "testFreeAllAndMerge", "allocandFreeMerge", "testRealloc",
 										"testRealloc2",
 										"testWild",
-										"testSplitAndMerge", "testCalloc","testBadArgs"};
+										"testSplitAndMerge", "testCalloc", "testBadArgs"};
 
 
 void initTests() {
@@ -480,9 +493,9 @@ int main() {
 			wait(&wait_status);
 			if (!WIFEXITED(wait_status) || (WEXITSTATUS(wait_status)) != 0) {
 				printTestName(function_names[i]);
-				std::cout << ": FAIL + CRASHED";
+				std::cout << ": "<< PRED("FAIL + CRASHED");
 				if (WCOREDUMP (wait_status)) {
-					std::cout << " (Core Dumped)";
+					std::cout << PRED(" (Core Dumped)");
 				} else if (WIFSIGNALED(wait_status)) {
 					std::cout << " Exit Signal:" << WTERMSIG(wait_status) << std::endl;
 				}
