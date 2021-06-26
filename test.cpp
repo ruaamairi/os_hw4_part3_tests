@@ -62,7 +62,7 @@ void freeAll(void *array[MAX_ALLOC]) {
 
 
 std::string allocNoFree(void *array[MAX_ALLOC]) {
-	std::string expected = "|U:100|U:100000|U:10|\n";
+	std::string expected = "|U:100|U:100000|U:10|";
 	if (MAX_ALLOC < 4) {
 		std::cout << "Test Wont work with MAX_ALLOC < 4";
 		return expected;
@@ -88,7 +88,7 @@ std::string allocandFree(void *array[MAX_ALLOC]) {
 			expected += "|U:" + default_block;
 		}
 	}
-	expected += "|\n";
+	expected += "|";
 
 	if (MAX_ALLOC < 6) {
 		std::cout << "Test Wont work with MAX_ALLOC < 6";
@@ -121,7 +121,7 @@ std::string allocandFreeMerge(void *array[MAX_ALLOC]) {
 	for (; j - 1 < MAX_ALLOC ; ++j) {
 		expected += "|U:" + default_block;
 	}
-	expected += "|\n";
+	expected += "|";
 
 	if (MAX_ALLOC < 10) {
 		std::cout << "Test Wont work with MAX_ALLOC < 10";
@@ -161,7 +161,7 @@ std::string testRealloc(void *array[MAX_ALLOC]) {
 	for (int i = 2 ; i < MAX_ALLOC ; ++i) {
 		expected += "|U:" + default_block;
 	}
-	expected += "|\n";
+	expected += "|";
 
 	if (MAX_ALLOC < 2) {
 		std::cout << "Test Wont work with MAX_ALLOC < 2";
@@ -202,7 +202,7 @@ std::string testRealloc2(void *array[MAX_ALLOC]) {
 		}
 	}
 	expected += "|F:" + std::to_string(default_block_size * 3) + "|U:" + std::to_string(default_block_size * 4) + "|U:" +
-				std::to_string(default_block_size * 2) + "|\n";
+				std::to_string(default_block_size * 2) + "|";
 
 	if (MAX_ALLOC < 10) {
 		std::cout << "Test Wont work with MAX_ALLOC < 10";
@@ -246,7 +246,7 @@ std::string testWild(void *array[MAX_ALLOC]) {
 		expected += "|U:" + default_block;
 	}
 	expected += "|U:" + std::to_string(default_block_size * 3);
-	expected += "|U:" + std::to_string(default_block_size * 2) + "|\n";
+	expected += "|U:" + std::to_string(default_block_size * 2) + "|";
 
 	if (MAX_ALLOC < 10) {
 		std::cout << "Test Wont work with MAX_ALLOC < 10";
@@ -286,7 +286,7 @@ std::string testSplitAndMerge(void *array[MAX_ALLOC]) {
 	for (int i = 14 ; i < MAX_ALLOC ; ++i) {
 		expected += "|U:" + default_block;
 	}
-	expected += "|\n";;
+	expected += "|";;
 
 
 	if (MAX_ALLOC < 14) {
@@ -317,7 +317,7 @@ std::string testSplitAndMerge(void *array[MAX_ALLOC]) {
 }
 
 std::string testCalloc(void *array[MAX_ALLOC]) {
-	std::string expected = "|U:100|U:20|U:100|\n";
+	std::string expected = "|U:100|U:20|U:100|";
 	if (MAX_ALLOC < 4) {
 		std::cout << "Test Wont work with MAX_ALLOC < 4";
 		return expected;
@@ -368,7 +368,7 @@ std::string testFreeAllAndMerge(void *array[MAX_ALLOC]) {
 		allsize += i + 1 + (int) sizeof(Metadata3);
 	}
 	allsize -= (int) sizeof(Metadata3);
-	std::string expected = "|F:" + std::to_string(allsize) + "|\n";
+	std::string expected = "|F:" + std::to_string(allsize) + "|";
 
 	for (int i = 0 ; i < MAX_ALLOC ; ++i) {
 		sfree(array[i]);
@@ -379,7 +379,7 @@ std::string testFreeAllAndMerge(void *array[MAX_ALLOC]) {
 }
 
 std::string testInit(void *array[MAX_ALLOC]) {
-	std::string expected = "|F:1|\n|U:2|\n";
+	std::string expected = "|F:1||U:2|";
 	printMemory<Metadata3>(memory_start_addr, true);
 	DO_MALLOC(array[0] = smalloc(2));
 	printMemory<Metadata3>(memory_start_addr, true);
@@ -450,11 +450,13 @@ bool checkFunc(std::string (*func)(void *[MAX_ALLOC]), void *array[MAX_ALLOC], s
 		std::cout << ": " << PRED("FAIL") << std::endl;
 		std::cout << "expected: '" << expected << "\'" << std::endl;
 		std::cout << "recived:  '" << text << "\'" << std::endl;
+		std::cout.flush();
 		return false;
 	} else {
 		printTestName(test_name);
 		std::cout << ": " << PGRN("PASS") << std::endl;
 	}
+	std::cout.flush();
 	return true;
 }
 /////////////////////////////////////////////////////
@@ -470,7 +472,7 @@ std::string function_names[NUM_FUNC] = {"testInit", "allocNoFree", "allocandFree
 void initTests() {
 	DO_MALLOC(memory_start_addr = getMemoryStart());
 	size_of_metadata = sizeof(Metadata3);
-	default_block_size = 4 * (size_of_metadata + (4 * 128)); // big enugh to split a lot
+	default_block_size = 4 * (size_of_metadata + (4 * 128)); // big enough to split a lot
 	if (default_block_size * 3 + size_of_metadata * 2 >= 128 * 1024) {
 		default_block_size /= 2;
 		std::cerr << "Metadata may be to big for some of the tests" << std::endl;
@@ -487,6 +489,23 @@ void initTests() {
 		}
 	}
 	max_test_name_len++;
+}
+
+void printInitFail() {
+	std::cerr << "Init Failed , ignore all other tests" << std::endl;
+	std::cerr << "The test get the start of the memory list using an allocation of size 1 and free it right after" << std::endl;
+	std::cerr << "If this failed you didnt increase it to allocate the next one (Wilderness)" << std::endl;
+	std::cerr.flush();
+}
+
+void printDebugInfo(){
+	std::cout << "Info For Debuging:" << std::endl << "Your Metadata size is: " << size_of_metadata << std::endl;
+	std::cout << "Default block size for tests is: " << default_block_size << std::endl;
+	std::cout << "Default 2 block after merge size is: " << default_block_size *2 +size_of_metadata << std::endl;
+	std::cout << "Default 3 block after merge size is: " << default_block_size *3 +size_of_metadata*2 << std::endl << std::endl;
+}
+
+void printStartRunningTests(){
 	std::cout << "RUNNING TESTS: (MALLOC PART 3)" << std::endl;
 	std::string header = "TEST NAME";
 	std::string line = "";
@@ -497,18 +516,15 @@ void initTests() {
 	printTestName(header);
 	std::cout << " STATUS" << std::endl;
 	std::cout << line << std::endl;
-
-}
-
-void printInitFail() {
-	std::cerr << "Init Failed , ignore all other tests" << std::endl;
-	std::cerr << "The test get the start of the memory list using an allocation of size 1 and free it right after" << std::endl;
-	std::cerr << "If this failed you didnt increase it to allocate the next one (Wilderness)" << std::endl;
 }
 
 int main() {
 	void *allocations[MAX_ALLOC];
 	initTests();
+
+	printDebugInfo();
+	std::cout.flush();
+	printStartRunningTests();
 	int wait_status;
 	bool ans;
 	for (int i = 0 ; i < NUM_FUNC ; ++i) {
@@ -533,7 +549,6 @@ int main() {
 			}
 		}
 	}
-
 
 	return 0;
 }

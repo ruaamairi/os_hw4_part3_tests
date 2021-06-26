@@ -29,9 +29,9 @@ void printMemory(void *start,bool onlyList) {
 		blocks++;
 		current = current->next;
 	}
-	std::cout << "|"<< std::endl;
+	std::cout << "|";
 	if(!onlyList){
-		std::cout << "Memory Info:\nNumber Of Blocks: " << blocks << "\nTotal Size (without Metadata): " << size << std::endl;
+		std::cout << std::endl << "Memory Info:\nNumber Of Blocks: " << blocks << "\nTotal Size (without Metadata): " << size << std::endl;
 		std::cout << "Size of Metadata: " << sizeof(T) << std::endl;
 	}
 }
