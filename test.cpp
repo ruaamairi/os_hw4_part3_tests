@@ -38,6 +38,12 @@ void *memory_start_addr;
 
 int max_test_name_len;
 
+#define DO_MALLOC(x) do{ \
+		if(!(x)){                \
+           std::cout << "Failed to allocate at line: "<< __LINE__ << ". command: "<< std::endl << #x << std::endl; \
+		   exit(1) ;\
+		}				\
+}while(0)
 
 ///////////////test functions/////////////////////
 void freeAll(void *array[MAX_ALLOC]) {
@@ -54,10 +60,10 @@ std::string allocNoFree(void *array[MAX_ALLOC]) {
 		return expected;
 	}
 
-	array[0] = smalloc(100);
-	array[1] = smalloc(100000);
-	array[2] = smalloc(10);
-	array[3] = smalloc(11e8);
+	DO_MALLOC(array[0] = smalloc(100));
+	DO_MALLOC(array[1] = smalloc(100000));
+	DO_MALLOC(array[2] = smalloc(10));
+	DO_MALLOC(array[3] = smalloc(11e6));
 
 
 	printMemory<Metadata3>(memory_start_addr, true);
@@ -82,7 +88,7 @@ std::string allocandFree(void *array[MAX_ALLOC]) {
 	}
 
 	for (int i = 0 ; i < MAX_ALLOC ; ++i) {
-		array[i] = smalloc(10);
+		DO_MALLOC(array[i] = smalloc(10));
 	}
 	for (int i = 0 ; i < MAX_ALLOC ; i += 5) {
 		sfree(array[i]);
@@ -117,11 +123,7 @@ std::string allocandFreeMerge(void *array[MAX_ALLOC]) {
 	}
 
 	for (int i = 0 ; i < MAX_ALLOC ; ++i) {
-		array[i] = smalloc(10);
-		if (!array[i]) {
-			std::cout << "Failed to allocate INDEX: " << i << std::endl;
-			return expected;
-		}
+		DO_MALLOC(array[i] = smalloc(10));
 	}
 	for (int i = 1 ; i + 8 < MAX_ALLOC ; i += 10) {
 		sfree(array[i]);
@@ -162,11 +164,7 @@ std::string testRealloc(void *array[MAX_ALLOC]) {
 	}
 
 	for (int i = 0 ; i < MAX_ALLOC ; ++i) {
-		array[i] = smalloc(10);
-		if (!array[i]) {
-			std::cout << "Failed to allocate INDEX: " << i << std::endl;
-			return expected;
-		}
+		DO_MALLOC(array[i] = smalloc(10));
 	}
 
 	for (int i = 0 ; i < 10 ; ++i) {
@@ -174,7 +172,7 @@ std::string testRealloc(void *array[MAX_ALLOC]) {
 		((char *) array[1])[i] = 'a';
 	}
 	sfree(array[0]);
-	array[1] = srealloc(array[1], 20);
+	DO_MALLOC(array[1] = srealloc(array[1], 20));
 	for (int i = 0 ; i < 10 ; ++i) {
 		std::cout << ((char *) array[0])[i];
 	}
@@ -206,19 +204,15 @@ std::string testRealloc2(void *array[MAX_ALLOC]) {
 	}
 
 	for (int i = 0 ; i < MAX_ALLOC ; ++i) {
-		array[i] = smalloc(10);
-		if (!array[i]) {
-			std::cout << "Failed to allocate INDEX: " << i << std::endl;
-			return expected;
-		}
+		DO_MALLOC(array[i] = smalloc(10));
 	}
 
 	sfree(array[5]);
-	array[5] = smalloc(30);
+	DO_MALLOC(array[5] = smalloc(30));
 	sfree(array[9]);
-	array[9] = smalloc(40);
+	DO_MALLOC(array[9] = smalloc(40));
 	sfree(array[7]);
-	array[7] = smalloc(20);
+	DO_MALLOC(array[7] = smalloc(20));
 
 	for (int i = 0 ; i < 10 ; ++i) {
 		((char *) array[3])[i] = 'b';
@@ -228,7 +222,7 @@ std::string testRealloc2(void *array[MAX_ALLOC]) {
 	sfree(array[5]);
 	sfree(array[7]);
 
-	array[3] = srealloc(array[3], 20);
+	DO_MALLOC(array[3] = srealloc(array[3], 20));
 	for (int i = 0 ; i < 10 ; ++i) {
 		std::cout << ((char *) array[7])[i];
 	}
@@ -251,17 +245,13 @@ std::string testWild(void *array[MAX_ALLOC]) {
 	}
 
 	for (int i = 0 ; i < MAX_ALLOC - 9 ; ++i) {
-		array[i] = smalloc(10);
-		if (!array[i]) {
-			std::cout << "Failed to allocate INDEX: " << i << std::endl;
-			return expected;
-		}
+		DO_MALLOC(array[i] = smalloc(10));
 	}
 
 	sfree(array[MAX_ALLOC - 10]);
-	array[MAX_ALLOC - 10] = smalloc(30);
-	array[MAX_ALLOC - 9] = smalloc(10);
-	array[MAX_ALLOC - 9] = srealloc(array[MAX_ALLOC - 9], 20);
+	DO_MALLOC(array[MAX_ALLOC - 10] = smalloc(30));
+	DO_MALLOC(array[MAX_ALLOC - 9] = smalloc(10));
+	DO_MALLOC(array[MAX_ALLOC - 9] = srealloc(array[MAX_ALLOC - 9], 20));
 
 	printMemory<Metadata3>(memory_start_addr, true);
 	return expected;
@@ -277,25 +267,21 @@ std::string testSplitAndMerge(void *array[MAX_ALLOC]) {
 	}
 
 	for (int i = 0 ; i < MAX_ALLOC ; ++i) {
-		array[i] = smalloc(200);
-		if (!array[i]) {
-			std::cout << "Failed to allocate INDEX: " << i << std::endl;
-			return expected;
-		}
+		DO_MALLOC(array[i] = smalloc(200));
 	}
 
 	sfree(array[0]);
-	smalloc(30);
+	DO_MALLOC(smalloc(30));
 	sfree(array[3]);
 	sfree(array[6]);
-	srealloc(array[4], 230);
-	srealloc(array[5], 230);
+	DO_MALLOC(srealloc(array[4], 230));
+	DO_MALLOC(srealloc(array[5], 230));
 
 	sfree(array[10]);
-	srealloc(array[9], 230);
+	DO_MALLOC(srealloc(array[9], 230));
 
 	sfree(array[12]);
-	srealloc(array[13], 230);
+	DO_MALLOC(srealloc(array[13], 230));
 
 
 	printMemory<Metadata3>(memory_start_addr, true);
@@ -309,28 +295,28 @@ std::string testCalloc(void *array[MAX_ALLOC]) {
 		return expected;
 	}
 
-	array[0] = scalloc(1, 100);
+	DO_MALLOC(array[0] = scalloc(1, 100));
 	for (int i = 0 ; i < 100 ; ++i) {
 		if (((char *) array[0])[i] != 0) {
 			std::cout << "array[0] isn't all 0 (first bad index:" << i << ")\n";
 			break;
 		}
 	}
-	array[1] = scalloc(2, 10);
+	DO_MALLOC(array[1] = scalloc(2, 10));
 	for (int i = 0 ; i < 20 ; ++i) {
 		if (((char *) array[1])[i] != 0) {
 			std::cout << "array[1] isn't all 0 (first bad index:" << i << ")\n";
 			break;
 		}
 	}
-	array[2] = scalloc(10, 10);
+	DO_MALLOC(array[2] = scalloc(10, 10));
 	for (int i = 0 ; i < 100 ; ++i) {
 		if (((char *) array[2])[i] != 0) {
 			std::cout << "array[2] isn't all 0 (first bad index:" << i << ")\n";
 			break;
 		}
 	}
-	array[3] = scalloc(100, 10000);
+	DO_MALLOC(array[3] = scalloc(100, 10000));
 	for (int i = 0 ; i < 1000000 ; ++i) {
 		if (((char *) array[3])[i] != 0) {
 			std::cout << "array[3] isn't all 0 (first bad index:" << i << ")\n";
@@ -343,7 +329,6 @@ std::string testCalloc(void *array[MAX_ALLOC]) {
 	return expected;
 }
 
-
 std::string testFreeAllAndMerge(void *array[MAX_ALLOC]) {
 	if (MAX_ALLOC > 10e8) {
 		std::cout << "Test Wont work with MAX_ALLOC > 10e8";
@@ -351,11 +336,7 @@ std::string testFreeAllAndMerge(void *array[MAX_ALLOC]) {
 	}
 	int allsize = 0;
 	for (int i = 0 ; i < MAX_ALLOC ; ++i) {
-		array[i] = smalloc(i + 1);
-		if (!array[i]) {
-			std::cout << "Failed to allocate INDEX: " << i << std::endl;
-			return "";
-		}
+		DO_MALLOC(array[i] = smalloc(i + 1));
 		allsize += i + 1 + (int) sizeof(Metadata3);
 	}
 	allsize -= (int) sizeof(Metadata3);
@@ -369,11 +350,10 @@ std::string testFreeAllAndMerge(void *array[MAX_ALLOC]) {
 	return expected;
 }
 
-
 std::string testInit(void *array[MAX_ALLOC]) {
 	std::string expected = "|F:1|\n|U:2|\n";
 	printMemory<Metadata3>(memory_start_addr, true);
-	array[0] = smalloc(2);
+	DO_MALLOC(array[0] = smalloc(2));
 	printMemory<Metadata3>(memory_start_addr, true);
 	return expected;
 }
@@ -381,12 +361,12 @@ std::string testInit(void *array[MAX_ALLOC]) {
 std::string testBadArgs(void *array[MAX_ALLOC]) {
 	std::string expected = "";
 	size_t options[3] = {static_cast<size_t>(-1), 0, static_cast<size_t>(10e8 + 1)};
-	array[9] = smalloc(1);
+	DO_MALLOC(array[9] = smalloc(1));
 	for (size_t option : options) {
-		array[0] = smalloc(option);
-		array[1] = scalloc(option, 1);
-		array[2] = scalloc(1, option);
-		array[3] = srealloc(array[9], option);
+		array[0] = smalloc(option);  //need to fail
+		array[1] = scalloc(option, 1); //need to fail
+		array[2] = scalloc(1, option); //need to fail
+		array[3] = srealloc(array[9], option); //need to fail
 		if (array[0] || array[1] || array[2] || array[3]) {
 			std::cout << "missed edge case: " << std::to_string(option) << std::endl;
 		}
@@ -460,7 +440,7 @@ std::string function_names[NUM_FUNC] = {"testInit", "allocNoFree", "allocandFree
 
 
 void initTests() {
-	memory_start_addr = getMemoryStart();
+	DO_MALLOC(memory_start_addr = getMemoryStart());
 	max_test_name_len = function_names[0].length();
 	for (int i = 0 ; i < NUM_FUNC ; ++i) {
 		if (max_test_name_len < (int) function_names[i].length()) {
@@ -481,6 +461,12 @@ void initTests() {
 
 }
 
+void printInitFail(){
+	std::cerr << "Init Failed , ignore all other tests" << std::endl;
+	std::cerr << "The test get the start of the memory list using an allocation of size 1 and free it right after" << std::endl;
+	std::cerr << "If this failed you didnt increase it to allocate the next one (Wilderness)" << std::endl;
+}
+
 int main() {
 	void *allocations[MAX_ALLOC];
 	initTests();
@@ -491,16 +477,14 @@ int main() {
 		if (pid == 0) {
 			ans = checkFunc(functions[i], allocations, function_names[i]);
 			if (i == 0 && !ans) {
-				std::cerr << "Init Failed , ignore all other tests" << std::endl;
-				std::cerr << "The test get the start of the memory list using an allocation of size 1 and free it right after" << std::endl;
-				std::cerr << "If this failed you didnt increase it to allocate the next one (Wilderness)" << std::endl;
+				printInitFail();
 			}
 			exit(0);
 		} else {
 			wait(&wait_status);
 			if (!WIFEXITED(wait_status) || (WEXITSTATUS(wait_status)) != 0) {
 				printTestName(function_names[i]);
-				std::cout << ": "<< PRED("FAIL + CRASHED");
+				std::cout << ": " << PRED("FAIL + CRASHED");
 				if (WCOREDUMP (wait_status)) {
 					std::cout << PRED(" (Core Dumped)");
 				} else if (WIFSIGNALED(wait_status)) {
