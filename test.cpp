@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <sstream>
 #include <sys/wait.h>
+#include <chrono>
 #include "printMemoryList.h"
 #include "malloc_3.h"
 #include "colors.h"
@@ -533,8 +534,6 @@ std::string testReallocDec(void *array[MAX_ALLOC]) {
 	return expected;
 }
 
-
-
 /////////////////////////////////////////////////////
 
 #ifdef USE_COLORS
@@ -563,6 +562,7 @@ void printTestName(std::string &name) {
 
 
 bool checkFunc(std::string (*func)(void *[MAX_ALLOC]), void *array[MAX_ALLOC], std::string &test_name) {
+	std::cout.flush();
 	std::stringstream buffer;
 	// Redirect std::cout to buffer
 	std::streambuf *prevcoutbuf = std::cout.rdbuf(buffer.rdbuf());
@@ -680,15 +680,30 @@ void printStartRunningTests() {
 	std::cout << line << std::endl;
 }
 
+void printEnd() {
+	std::string line = "";
+	line.insert(0, max_test_name_len + 9, '-');
+	std::cout << line << std::endl;
+}
+
+
 int main() {
 	void *allocations[MAX_ALLOC];
-	initTests();
+	using std::chrono::high_resolution_clock;
+	using std::chrono::duration_cast;
+	using std::chrono::duration;
+	using std::chrono::milliseconds;
+	int wait_status;
+	bool ans;
 
+
+	initTests();
 	printDebugInfo();
 	std::cout.flush();
 	printStartRunningTests();
-	int wait_status;
-	bool ans;
+
+	auto t1 = high_resolution_clock::now();
+
 	for (int i = 0 ; i < NUM_FUNC ; ++i) {
 		pid_t pid = fork();
 		if (pid == 0) {
@@ -711,6 +726,11 @@ int main() {
 			}
 		}
 	}
+
+	printEnd();
+	auto t2 = high_resolution_clock::now();
+	duration<double, std::milli> ms_double = t2 - t1;
+	std::cout << "Total Run Time: " << ms_double.count() << "ms";
 
 
 	return 0;
