@@ -41,6 +41,7 @@ int max_test_name_len;
 int size_of_metadata;
 
 int default_block_size;
+stats current_stats;
 
 std::string default_block;
 std::string block_of_2;
@@ -48,10 +49,12 @@ std::string block_of_3;
 
 #define DO_MALLOC(x) do{ \
         if(!(x)){                \
-           std::cout << "Failed to allocate at line: "<< __LINE__ << ". command: "<< std::endl << #x << std::endl; \
+           std::cerr << "Failed to allocate at line: "<< __LINE__ << ". command: "<< std::endl << #x << std::endl; \
            exit(1) ;\
         }                \
 }while(0)
+
+void checkStats(size_t bytes_mmap, int blocks_mmap, int line_number);
 
 ///////////////test functions/////////////////////
 void freeAll(void *array[MAX_ALLOC]) {
@@ -69,11 +72,13 @@ std::string allocNoFree(void *array[MAX_ALLOC]) {
 	}
 
 	DO_MALLOC(array[0] = smalloc(100));
+	checkStats(0, 0, __LINE__);
 	DO_MALLOC(array[1] = smalloc(100000));
+	checkStats(0, 0, __LINE__);
 	DO_MALLOC(array[2] = smalloc(10));
+	checkStats(0, 0, __LINE__);
 	DO_MALLOC(array[3] = smalloc(11e6));
-
-
+	checkStats(11e6, 1, __LINE__);
 	printMemory<Metadata3>(memory_start_addr, true);
 	return expected;
 }
@@ -98,9 +103,11 @@ std::string allocandFree(void *array[MAX_ALLOC]) {
 	for (int i = 0 ; i < MAX_ALLOC ; ++i) {
 		DO_MALLOC(array[i] = smalloc(default_block_size));
 	}
+	checkStats(0, 0, __LINE__);
 	for (int i = 0 ; i < MAX_ALLOC ; i += 5) {
 		sfree(array[i]);
 	}
+	checkStats(0, 0, __LINE__);
 
 	printMemory<Metadata3>(memory_start_addr, true);
 	return expected;
@@ -131,21 +138,29 @@ std::string allocandFreeMerge(void *array[MAX_ALLOC]) {
 	for (int i = 0 ; i < MAX_ALLOC ; ++i) {
 		DO_MALLOC(array[i] = smalloc(default_block_size));
 	}
+	checkStats(0, 0, __LINE__);
 	for (int i = 1 ; i + 8 < MAX_ALLOC ; i += 10) {
+		checkStats(0, 0, __LINE__);
 		sfree(array[i]);
+		checkStats(0, 0, __LINE__);
 		sfree(array[i + 1]);
+		checkStats(0, 0, __LINE__);
 		//keep +2 allocated
 
 		//check if order matter
 		sfree(array[i + 4]);
+		checkStats(0, 0, __LINE__);
 		sfree(array[i + 3]);
-
+		checkStats(0, 0, __LINE__);
 		//keep +5 allocated
 
 		//check if merge 3
 		sfree(array[i + 6]);
+		checkStats(0, 0, __LINE__);
 		sfree(array[i + 8]);
+		checkStats(0, 0, __LINE__);
 		sfree(array[i + 7]);
+		checkStats(0, 0, __LINE__);
 	}
 	printMemory<Metadata3>(memory_start_addr, true);
 	return expected;
@@ -171,13 +186,16 @@ std::string testRealloc(void *array[MAX_ALLOC]) {
 	for (int i = 0 ; i < MAX_ALLOC ; ++i) {
 		DO_MALLOC(array[i] = smalloc(default_block_size));
 	}
+	checkStats(0, 0, __LINE__);
 
 	for (int i = 0 ; i < 10 ; ++i) {
 		((char *) array[0])[i] = 'b';
 		((char *) array[1])[i] = 'a';
 	}
 	sfree(array[0]);
+	checkStats(0, 0, __LINE__);
 	DO_MALLOC(array[1] = srealloc(array[1], default_block_size * 2));
+	checkStats(0, 0, __LINE__);
 	for (int i = 0 ; i < 10 ; ++i) {
 		std::cout << ((char *) array[0])[i];
 	}
@@ -212,13 +230,19 @@ std::string testRealloc2(void *array[MAX_ALLOC]) {
 	for (int i = 0 ; i < MAX_ALLOC ; ++i) {
 		DO_MALLOC(array[i] = smalloc(default_block_size));
 	}
-
+	checkStats(0, 0, __LINE__);
 	sfree(array[5]);
+	checkStats(0, 0, __LINE__);
 	DO_MALLOC(array[5] = smalloc(default_block_size * 3));
+	checkStats(0, 0, __LINE__);
 	sfree(array[9]);
+	checkStats(0, 0, __LINE__);
 	DO_MALLOC(array[9] = smalloc(default_block_size * 4));
+	checkStats(0, 0, __LINE__);
 	sfree(array[7]);
+	checkStats(0, 0, __LINE__);
 	DO_MALLOC(array[7] = smalloc(default_block_size * 2));
+	checkStats(0, 0, __LINE__);
 
 	for (int i = 0 ; i < default_block_size ; ++i) {
 		((char *) array[3])[i] = 'b';
@@ -226,9 +250,12 @@ std::string testRealloc2(void *array[MAX_ALLOC]) {
 		((char *) array[7])[i] = 'd';
 	}
 	sfree(array[5]);
+	checkStats(0, 0, __LINE__);
 	sfree(array[7]);
+	checkStats(0, 0, __LINE__);
 
 	DO_MALLOC(array[3] = srealloc(array[3], default_block_size * 2));
+	checkStats(0, 0, __LINE__);
 	for (int i = 0 ; i < default_block_size ; ++i) {
 		if (((char *) array[7])[i] != 'b') {
 			std::cout << "realloc didnt copy the char b to index " << i << std::endl;
@@ -256,11 +283,15 @@ std::string testWild(void *array[MAX_ALLOC]) {
 	for (int i = 0 ; i < MAX_ALLOC - 9 ; ++i) {
 		DO_MALLOC(array[i] = smalloc(default_block_size));
 	}
-
+	checkStats(0, 0, __LINE__);
 	sfree(array[MAX_ALLOC - 10]);
+	checkStats(0, 0, __LINE__);
 	DO_MALLOC(array[MAX_ALLOC - 10] = smalloc(default_block_size * 3));
+	checkStats(0, 0, __LINE__);
 	DO_MALLOC(array[MAX_ALLOC - 9] = smalloc(default_block_size));
+	checkStats(0, 0, __LINE__);
 	DO_MALLOC(array[MAX_ALLOC - 9] = srealloc(array[MAX_ALLOC - 9], default_block_size * 2));
+	checkStats(0, 0, __LINE__);
 
 	printMemory<Metadata3>(memory_start_addr, true);
 	return expected;
@@ -297,20 +328,28 @@ std::string testSplitAndMerge(void *array[MAX_ALLOC]) {
 	for (int i = 0 ; i < MAX_ALLOC ; ++i) {
 		DO_MALLOC(array[i] = smalloc(default_block_size));
 	}
-
+	checkStats(0, 0, __LINE__);
 	sfree(array[0]);
+	checkStats(0, 0, __LINE__);
 	DO_MALLOC(smalloc(default_block_size / 3));
+	checkStats(0, 0, __LINE__);
 	sfree(array[3]);
+	checkStats(0, 0, __LINE__);
 	sfree(array[6]);
+	checkStats(0, 0, __LINE__);
 	DO_MALLOC(srealloc(array[4], default_block_size + default_block_size / 3));
+	checkStats(0, 0, __LINE__);
 	DO_MALLOC(srealloc(array[5], default_block_size + default_block_size / 3));
-
+	checkStats(0, 0, __LINE__);
 	sfree(array[10]);
+	checkStats(0, 0, __LINE__);
 	DO_MALLOC(srealloc(array[9], default_block_size + default_block_size / 3));
+	checkStats(0, 0, __LINE__);
 
 	sfree(array[12]);
+	checkStats(0, 0, __LINE__);
 	DO_MALLOC(srealloc(array[13], default_block_size + default_block_size / 3));
-
+	checkStats(0, 0, __LINE__);
 
 	printMemory<Metadata3>(memory_start_addr, true);
 	return expected;
@@ -324,6 +363,7 @@ std::string testCalloc(void *array[MAX_ALLOC]) {
 	}
 
 	DO_MALLOC(array[0] = scalloc(1, 100));
+	checkStats(0, 0, __LINE__);
 	for (int i = 0 ; i < 100 ; ++i) {
 		if (((char *) array[0])[i] != 0) {
 			std::cout << "array[0] isn't all 0 (first bad index:" << i << ")\n";
@@ -331,6 +371,7 @@ std::string testCalloc(void *array[MAX_ALLOC]) {
 		}
 	}
 	DO_MALLOC(array[1] = scalloc(2, 10));
+	checkStats(0, 0, __LINE__);
 	for (int i = 0 ; i < 20 ; ++i) {
 		if (((char *) array[1])[i] != 0) {
 			std::cout << "array[1] isn't all 0 (first bad index:" << i << ")\n";
@@ -338,6 +379,7 @@ std::string testCalloc(void *array[MAX_ALLOC]) {
 		}
 	}
 	DO_MALLOC(array[2] = scalloc(10, 10));
+	checkStats(0, 0, __LINE__);
 	for (int i = 0 ; i < 100 ; ++i) {
 		if (((char *) array[2])[i] != 0) {
 			std::cout << "array[2] isn't all 0 (first bad index:" << i << ")\n";
@@ -345,6 +387,7 @@ std::string testCalloc(void *array[MAX_ALLOC]) {
 		}
 	}
 	DO_MALLOC(array[3] = scalloc(100, 10000));
+	checkStats(10000 * 100, 1, __LINE__);
 	for (int i = 0 ; i < 1000000 ; ++i) {
 		if (((char *) array[3])[i] != 0) {
 			std::cout << "array[3] isn't all 0 (first bad index:" << i << ")\n";
@@ -367,12 +410,14 @@ std::string testFreeAllAndMerge(void *array[MAX_ALLOC]) {
 		DO_MALLOC(array[i] = smalloc(i + 1));
 		allsize += i + 1 + (int) sizeof(Metadata3);
 	}
+	checkStats(0, 0, __LINE__);
 	allsize -= (int) sizeof(Metadata3);
 	std::string expected = "|F:" + std::to_string(allsize) + "|";
 
 	for (int i = 0 ; i < MAX_ALLOC ; ++i) {
 		sfree(array[i]);
 	}
+	checkStats(0, 0, __LINE__);
 
 	printMemory<Metadata3>(memory_start_addr, true);
 	return expected;
@@ -381,7 +426,9 @@ std::string testFreeAllAndMerge(void *array[MAX_ALLOC]) {
 std::string testInit(void *array[MAX_ALLOC]) {
 	std::string expected = "|F:1||U:2|";
 	printMemory<Metadata3>(memory_start_addr, true);
+	checkStats(0, 0, __LINE__);
 	DO_MALLOC(array[0] = smalloc(2));
+	checkStats(0, 0, __LINE__);
 	printMemory<Metadata3>(memory_start_addr, true);
 	return expected;
 }
@@ -390,11 +437,16 @@ std::string testBadArgs(void *array[MAX_ALLOC]) {
 	std::string expected = "";
 	size_t options[3] = {static_cast<size_t>(-1), 0, static_cast<size_t>(10e8 + 1)};
 	DO_MALLOC(array[9] = smalloc(1));
+	checkStats(0, 0, __LINE__);
 	for (size_t option : options) {
 		array[0] = smalloc(option);  //need to fail
+		checkStats(0, 0, __LINE__);
 		array[1] = scalloc(option, 1); //need to fail
+		checkStats(0, 0, __LINE__);
 		array[2] = scalloc(1, option); //need to fail
+		checkStats(0, 0, __LINE__);
 		array[3] = srealloc(array[9], option); //need to fail
+		checkStats(0, 0, __LINE__);
 		if (array[0] || array[1] || array[2] || array[3]) {
 			std::cout << "missed edge case: " << std::to_string(option) << std::endl;
 		}
@@ -468,9 +520,40 @@ std::string function_names[NUM_FUNC] = {"testInit", "allocNoFree", "allocandFree
 										"testWild",
 										"testSplitAndMerge", "testCalloc", "testBadArgs"};
 
+void checkStats(size_t bytes_mmap, int blocks_mmap, int line_number) {
+	updateStats<Metadata3>(memory_start_addr, current_stats, bytes_mmap, blocks_mmap);
+	if (_num_allocated_blocks() != current_stats.num_allocated_blocks) {
+		std::cout << "num_allocated_blocks is not accurate at line: " << line_number << std::endl;
+		std::cout << "Expected: " << current_stats.num_allocated_blocks << std::endl;
+		std::cout << "Recived:  " << _num_allocated_blocks() << std::endl;
+	}
+	if (_num_allocated_bytes() != current_stats.num_allocated_bytes) {
+		std::cout << "num_allocated_bytes is not accurate at line: " << line_number << std::endl;
+		std::cout << "Expected: " << current_stats.num_allocated_bytes << std::endl;
+		std::cout << "Recived:  " << _num_allocated_bytes() << std::endl;
+	}
+	if (_num_meta_data_bytes() != current_stats.num_meta_data_bytes) {
+		std::cout << "num_meta_data_bytes is not accurate at line: " << line_number << std::endl;
+		std::cout << "Expected: " << current_stats.num_meta_data_bytes << std::endl;
+		std::cout << "Recived:  " << _num_meta_data_bytes() << std::endl;
+	}
+	if (_num_free_blocks() != current_stats.num_free_blocks) {
+		std::cout << "num_free_blocks is not accurate at line: " << line_number << std::endl;
+		std::cout << "Expected: " << current_stats.num_free_blocks << std::endl;
+		std::cout << "Recived:  " << _num_free_blocks() << std::endl;
+	}
+	if (_num_free_bytes() != current_stats.num_free_bytes) {
+		std::cout << "num_free_bytes is not accurate at line: " << line_number << std::endl;
+		std::cout << "Expected: " << current_stats.num_free_bytes << std::endl;
+		std::cout << "Recived:  " << _num_free_bytes() << std::endl;
+	}
+}
+
 
 void initTests() {
+	resetStats(current_stats);
 	DO_MALLOC(memory_start_addr = getMemoryStart());
+	checkStats(0, 0, __LINE__);
 	size_of_metadata = sizeof(Metadata3);
 	default_block_size = 4 * (size_of_metadata + (4 * 128)); // big enough to split a lot
 	if (default_block_size * 3 + size_of_metadata * 2 >= 128 * 1024) {
@@ -498,14 +581,14 @@ void printInitFail() {
 	std::cerr.flush();
 }
 
-void printDebugInfo(){
+void printDebugInfo() {
 	std::cout << "Info For Debuging:" << std::endl << "Your Metadata size is: " << size_of_metadata << std::endl;
 	std::cout << "Default block size for tests is: " << default_block_size << std::endl;
-	std::cout << "Default 2 block after merge size is: " << default_block_size *2 +size_of_metadata << std::endl;
-	std::cout << "Default 3 block after merge size is: " << default_block_size *3 +size_of_metadata*2 << std::endl << std::endl;
+	std::cout << "Default 2 block after merge size is: " << default_block_size * 2 + size_of_metadata << std::endl;
+	std::cout << "Default 3 block after merge size is: " << default_block_size * 3 + size_of_metadata * 2 << std::endl << std::endl;
 }
 
-void printStartRunningTests(){
+void printStartRunningTests() {
 	std::cout << "RUNNING TESTS: (MALLOC PART 3)" << std::endl;
 	std::string header = "TEST NAME";
 	std::string line = "";
@@ -549,6 +632,5 @@ int main() {
 			}
 		}
 	}
-
 	return 0;
 }
