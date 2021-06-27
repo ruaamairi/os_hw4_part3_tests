@@ -30,7 +30,7 @@ typedef struct MallocMetadata3 {
 ///////////////////////////////////////////////////
 
 
-#define NUM_FUNC 11
+#define NUM_FUNC 13
 
 typedef std::string (*TestFunc)(void *[MAX_ALLOC]);
 
@@ -41,6 +41,9 @@ int max_test_name_len;
 int size_of_metadata;
 
 int default_block_size;
+
+int size_for_mmap = 128 * 1024;
+
 stats current_stats;
 
 std::string default_block;
@@ -172,7 +175,7 @@ std::string allocandFreeMerge(void *array[MAX_ALLOC]) {
  * @return
  */
 std::string testRealloc(void *array[MAX_ALLOC]) {
-	std::string expected = "aaaaaaaaaa|U:" + block_of_2;
+	std::string expected = "|U:" + block_of_2;
 	for (int i = 2 ; i < MAX_ALLOC ; ++i) {
 		expected += "|U:" + default_block;
 	}
@@ -188,7 +191,7 @@ std::string testRealloc(void *array[MAX_ALLOC]) {
 	}
 	checkStats(0, 0, __LINE__);
 
-	for (int i = 0 ; i < 10 ; ++i) {
+	for (int i = 0 ; i < default_block_size ; ++i) {
 		((char *) array[0])[i] = 'b';
 		((char *) array[1])[i] = 'a';
 	}
@@ -196,8 +199,12 @@ std::string testRealloc(void *array[MAX_ALLOC]) {
 	checkStats(0, 0, __LINE__);
 	DO_MALLOC(array[1] = srealloc(array[1], default_block_size * 2));
 	checkStats(0, 0, __LINE__);
-	for (int i = 0 ; i < 10 ; ++i) {
-		std::cout << ((char *) array[0])[i];
+
+	for (int i = 0 ; i < default_block_size ; ++i) {
+		if (((char *) array[0])[i] != 'a') {
+			std::cout << "realloc didnt copy the char b to index " << i << std::endl;
+			break;
+		}
 	}
 
 	printMemory<Metadata3>(memory_start_addr, true);
@@ -434,7 +441,7 @@ std::string testInit(void *array[MAX_ALLOC]) {
 }
 
 std::string testBadArgs(void *array[MAX_ALLOC]) {
-	std::string expected = "";
+	std::string expected = "|U:1|";
 	size_t options[3] = {static_cast<size_t>(-1), 0, static_cast<size_t>(10e8 + 1)};
 	DO_MALLOC(array[9] = smalloc(1));
 	checkStats(0, 0, __LINE__);
@@ -451,9 +458,81 @@ std::string testBadArgs(void *array[MAX_ALLOC]) {
 			std::cout << "missed edge case: " << std::to_string(option) << std::endl;
 		}
 	}
-
+	printMemory<Metadata3>(memory_start_addr, true);
 	return expected;
 }
+
+std::string testReallocMMap(void *array[MAX_ALLOC]) {
+	std::string expected = "|F:1|";
+	for (int i = 0 ; i < MAX_ALLOC ; ++i) {
+		DO_MALLOC(array[i] = smalloc(size_for_mmap));
+	}
+	checkStats(MAX_ALLOC * size_for_mmap, MAX_ALLOC, __LINE__);
+
+	for (int i = 0 ; i < size_for_mmap ; ++i) {
+		((char *) array[0])[i] = 'b';
+		((char *) array[1])[i] = 'a';
+	}
+	sfree(array[0]);
+	checkStats((MAX_ALLOC - 1) * size_for_mmap, MAX_ALLOC - 1, __LINE__);
+	DO_MALLOC(array[1] = srealloc(array[1], size_for_mmap * 2));
+	checkStats((MAX_ALLOC) * size_for_mmap, MAX_ALLOC - 1, __LINE__);
+	for (int i = 0 ; i < size_for_mmap ; ++i) {
+		if (((char *) array[1])[i] != 'a') {
+			std::cout << "realloc didnt copy the char a to index " << i << std::endl;
+			break;
+		}
+	}
+
+	DO_MALLOC(array[1] = srealloc(array[1], size_for_mmap)); //test  decreasing
+	checkStats((MAX_ALLOC - 1) * size_for_mmap, MAX_ALLOC - 1, __LINE__);
+
+	for (int i = 0 ; i < size_for_mmap ; ++i) {
+		if (((char *) array[1])[i] != 'a') {
+			std::cout << "realloc didnt copy the char a to index " << i << std::endl;
+			break;
+		}
+	}
+	printMemory<Metadata3>(memory_start_addr, true);
+	return expected;
+}
+
+
+std::string testReallocDec(void *array[MAX_ALLOC]) {
+	std::string expected = "|F:" + std::to_string(default_block_size * 2);
+	expected += "|U:" + std::to_string(default_block_size);
+	expected += "|F:" + std::to_string(default_block_size - size_of_metadata);
+	for (int i = 2 ; i < MAX_ALLOC ; ++i) {
+		expected += "|U:" + std::to_string(default_block_size * 2);
+	}
+	expected += "|";
+
+
+	for (int i = 0 ; i < MAX_ALLOC ; ++i) {
+		DO_MALLOC(array[i] = smalloc(default_block_size * 2));
+	}
+	checkStats(0, 0, __LINE__);
+
+	for (int i = 0 ; i < default_block_size * 2 ; ++i) {
+		((char *) array[0])[i] = 'b';
+		((char *) array[1])[i] = 'a';
+	}
+	sfree(array[0]);
+	checkStats(0, 0, __LINE__);
+	DO_MALLOC(array[1] = srealloc(array[1], default_block_size));
+	checkStats(0, 0, __LINE__);
+
+	for (int i = 0 ; i < default_block_size ; ++i) {
+		if (((char *) array[1])[i] != 'a') {
+			std::cout << "realloc didnt copy the char a to index " << i << std::endl;
+			break;
+		}
+	}
+
+	printMemory<Metadata3>(memory_start_addr, true);
+	return expected;
+}
+
 
 
 /////////////////////////////////////////////////////
@@ -514,11 +593,11 @@ bool checkFunc(std::string (*func)(void *[MAX_ALLOC]), void *array[MAX_ALLOC], s
 /////////////////////////////////////////////////////
 
 TestFunc functions[NUM_FUNC] = {testInit, allocNoFree, allocandFree, testFreeAllAndMerge, allocandFreeMerge, testRealloc, testRealloc2, testWild,
-								testSplitAndMerge, testCalloc, testBadArgs};
+								testSplitAndMerge, testCalloc, testBadArgs, testReallocMMap, testReallocDec};
 std::string function_names[NUM_FUNC] = {"testInit", "allocNoFree", "allocandFree", "testFreeAllAndMerge", "allocandFreeMerge", "testRealloc",
 										"testRealloc2",
 										"testWild",
-										"testSplitAndMerge", "testCalloc", "testBadArgs"};
+										"testSplitAndMerge", "testCalloc", "testBadArgs", "testReallocMMap", "testReallocDec"};
 
 void checkStats(size_t bytes_mmap, int blocks_mmap, int line_number) {
 	updateStats<Metadata3>(memory_start_addr, current_stats, bytes_mmap, blocks_mmap);
@@ -632,5 +711,7 @@ int main() {
 			}
 		}
 	}
+
+
 	return 0;
 }
