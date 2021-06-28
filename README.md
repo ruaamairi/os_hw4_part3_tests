@@ -11,8 +11,15 @@ run using cmake
 ## Notes
 if you can help and want to add your tests create a pull request or contact me
 
-
 ### How To Debug:
 The best way to debug that i found is to put the test outside the fork  
 and then you can debug in normal methods.
 just make sure you dont move more then one test outside to avoid them conflicting
+
+## F.A.Q
+  *    Why the expected in stats show x?  
+    *  The expected is getting calculated from your own memory list. 
+       it means you have a problem in the list or the stats func
+  *    why one of the test have 2 free blocks that are not merged?  
+    *  the segel dont want us to merge on split (ex: on realloc)
+       https://piazza.com/class/kmeyq2ecrv940z?cid=622 
