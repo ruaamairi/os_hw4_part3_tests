@@ -416,10 +416,10 @@ std::string testFreeAllAndMerge(void *array[MAX_ALLOC]) {
 	int allsize = 0;
 	for (int i = 0 ; i < MAX_ALLOC ; ++i) {
 		DO_MALLOC(array[i] = smalloc(i + 1));
-		allsize += i + 1 + (int) sizeof(Metadata3);
+		allsize += i + 1 + (int) _size_meta_data();
 	}
 	checkStats(0, 0, __LINE__);
-	allsize -= (int) sizeof(Metadata3);
+	allsize -= (int) _size_meta_data();
 	std::string expected = "|F:" + std::to_string(allsize) + "|";
 
 	for (int i = 0 ; i < MAX_ALLOC ; ++i) {
@@ -433,6 +433,9 @@ std::string testFreeAllAndMerge(void *array[MAX_ALLOC]) {
 
 std::string testInit(void *array[MAX_ALLOC]) {
 	std::string expected = "|F:1||U:2|";
+	if (sizeof(Metadata3) != _size_meta_data()) {
+		std::cout << "You didn't copy the metadata as is Or a bug in  _size_meta_data()" << std::endl;
+	}
 	printMemory<Metadata3>(memory_start_addr, true);
 	checkStats(0, 0, __LINE__);
 	DO_MALLOC(array[0] = smalloc(2));
@@ -548,7 +551,7 @@ std::string testReallocDec(void *array[MAX_ALLOC]) {
 void *getMemoryStart() {
 	void *first = smalloc(1);
 	if (!first) { return nullptr; }
-	void *start = (char *) first - sizeof(Metadata3);
+	void *start = (char *) first - _size_meta_data();
 	sfree(first);
 	return start;
 }
@@ -633,7 +636,7 @@ void initTests() {
 	resetStats(current_stats);
 	DO_MALLOC(memory_start_addr = getMemoryStart());
 	checkStats(0, 0, __LINE__);
-	size_of_metadata = sizeof(Metadata3);
+	size_of_metadata = _size_meta_data();
 	default_block_size = 4 * (size_of_metadata + (4 * 128)); // big enough to split a lot
 	if (default_block_size * 3 + size_of_metadata * 2 >= 128 * 1024) {
 		default_block_size /= 2;
