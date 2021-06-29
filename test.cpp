@@ -31,7 +31,7 @@ typedef struct MallocMetadata3 {
 ///////////////////////////////////////////////////
 
 
-#define NUM_FUNC 13
+#define NUM_FUNC 14
 
 typedef std::string (*TestFunc)(void *[MAX_ALLOC]);
 
@@ -537,6 +537,42 @@ std::string testReallocDec(void *array[MAX_ALLOC]) {
 	return expected;
 }
 
+
+std::string testReallocDecOverwrite(void *array[MAX_ALLOC]) {
+	std::string expected = "|U:" + std::to_string(default_block_size * 3 +size_of_metadata);
+	expected += "|";
+	checkStats(0, 0, __LINE__);
+	DO_MALLOC(array[0] = smalloc(default_block_size));
+	checkStats(0, 0, __LINE__);
+	DO_MALLOC(array[1] = smalloc(default_block_size * 2));
+	checkStats(0, 0, __LINE__);
+
+	for (int i = 0 ; i < default_block_size * 2 ; ++i) {
+		((char *) array[1])[i] = (char) i;
+	}
+	for (int i = 0 ; i < default_block_size ; ++i) {
+		((char *) array[0])[i] = (char) i;
+	}
+
+	checkStats(0, 0, __LINE__);
+	sfree(array[0]);
+
+	checkStats(0, 0, __LINE__);
+	DO_MALLOC(array[1] = srealloc(array[1], default_block_size * 3));
+	checkStats(0, 0, __LINE__);
+
+	for (int i = 0 ; i < default_block_size * 2 ; ++i) {
+		if (((char *) array[1])[i] != (char) i) {
+			std::cout << "realloc didnt copy the char a to index " << i << std::endl;
+			break;
+		}
+	}
+
+	printMemory<Metadata3>(memory_start_addr, true);
+	return expected;
+}
+
+
 /////////////////////////////////////////////////////
 
 #ifdef USE_COLORS
@@ -596,11 +632,11 @@ bool checkFunc(std::string (*func)(void *[MAX_ALLOC]), void *array[MAX_ALLOC], s
 /////////////////////////////////////////////////////
 
 TestFunc functions[NUM_FUNC] = {testInit, allocNoFree, allocandFree, testFreeAllAndMerge, allocandFreeMerge, testRealloc, testRealloc2, testWild,
-								testSplitAndMerge, testCalloc, testBadArgs, testReallocMMap, testReallocDec};
+								testSplitAndMerge, testCalloc, testBadArgs, testReallocMMap, testReallocDec , testReallocDecOverwrite};
 std::string function_names[NUM_FUNC] = {"testInit", "allocNoFree", "allocandFree", "testFreeAllAndMerge", "allocandFreeMerge", "testRealloc",
 										"testRealloc2",
 										"testWild",
-										"testSplitAndMerge", "testCalloc", "testBadArgs", "testReallocMMap", "testReallocDec"};
+										"testSplitAndMerge", "testCalloc", "testBadArgs", "testReallocMMap", "testReallocDec" ,"testReallocDecOverwrite"};
 
 void checkStats(size_t bytes_mmap, int blocks_mmap, int line_number) {
 	updateStats<Metadata3>(memory_start_addr, current_stats, bytes_mmap, blocks_mmap);
@@ -729,7 +765,6 @@ int main() {
 			}
 		}
 	}
-
 	printEnd();
 	auto t2 = high_resolution_clock::now();
 	duration<double, std::milli> ms_double = t2 - t1;
