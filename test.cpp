@@ -31,7 +31,7 @@ typedef struct MallocMetadata3 {
 ///////////////////////////////////////////////////
 
 
-#define NUM_FUNC 16
+#define NUM_FUNC 18
 
 typedef std::string (*TestFunc)(void *[MAX_ALLOC]);
 
@@ -663,6 +663,133 @@ std::string testReallocWildLikePiazza(void *array[MAX_ALLOC]) {
 }
 
 
+std::string testReallocWilderness2(void *array[MAX_ALLOC]) {
+	std::string expected = "|U:" + std::to_string(default_block_size);
+	expected += "|F:" + std::to_string(default_block_size * 3);
+	expected += "|U:" + std::to_string(default_block_size * 2);
+	expected += "|U:" + std::to_string(default_block_size * 2 + _size_meta_data()) + "|";
+	checkStats(0, 0, __LINE__);
+	DO_MALLOC(array[0] = smalloc(default_block_size));
+	checkStats(0, 0, __LINE__);
+	DO_MALLOC(array[1] = smalloc(default_block_size * 3));
+	checkStats(0, 0, __LINE__);
+	DO_MALLOC(array[2] = smalloc(default_block_size * 2));
+	checkStats(0, 0, __LINE__);
+	DO_MALLOC(array[3] = smalloc(default_block_size));
+	checkStats(0, 0, __LINE__);
+	DO_MALLOC(array[4] = smalloc(default_block_size));
+	checkStats(0, 0, __LINE__);
+
+	for (int i = 0 ; i < default_block_size ; ++i) {
+		((char *) array[4])[i] = (char) i;
+	}
+
+	checkStats(0, 0, __LINE__);
+
+	sfree(array[3]);
+	checkStats(0, 0, __LINE__);
+
+	sfree(array[1]);
+	checkStats(0, 0, __LINE__);
+
+	DO_MALLOC(array[4] = srealloc(array[4], default_block_size * 2));
+	checkStats(0, 0, __LINE__);
+	if (array[4] != array[3]) {
+		std::cout << "srealloc on wilderness didn't merge with adjacent block" << std::endl;
+	}
+	printMemory<Metadata3>(memory_start_addr, true);
+
+	for (int i = 0 ; i < default_block_size ; ++i) {
+		if (((char *) array[3])[i] != (char) i) {
+			std::cout << "realloc didnt copy the char a to index " << i << std::endl;
+			break;
+		}
+	}
+	void *last4ThItem = array[4];
+	DO_MALLOC(array[4] = srealloc(array[4], default_block_size * 3));
+	checkStats(0, 0, __LINE__);
+	if (array[4] != last4ThItem) {
+		std::cout << "srealloc on wilderness didn't increse it though no merge is available" << std::endl;
+	}
+	for (int i = 0 ; i < default_block_size ; ++i) {
+		if (((char *) array[4])[i] != (char) i) {
+			std::cout << "realloc didnt copy the char a to index " << i << std::endl;
+			break;
+		}
+	}
+	expected += "|U:" + std::to_string(default_block_size);
+	expected += "|F:" + std::to_string(default_block_size * 3);
+	expected += "|U:" + std::to_string(default_block_size * 2);
+	expected += "|U:" + std::to_string(default_block_size * 3) + "|";
+	printMemory<Metadata3>(memory_start_addr, true);
+	return expected;
+}
+
+std::string mergeVariations(void *array[MAX_ALLOC]) {
+	std::string expected = "|U:" + std::to_string(default_block_size);
+	expected += "|U:" + std::to_string(default_block_size);
+	expected += "|U:" + std::to_string(default_block_size * 2 + _size_meta_data());
+	expected += "|U:" + std::to_string(default_block_size) + "|";
+	checkStats(0, 0, __LINE__);
+	DO_MALLOC(array[0] = smalloc(default_block_size));
+	checkStats(0, 0, __LINE__);
+	DO_MALLOC(array[1] = smalloc(default_block_size));
+	checkStats(0, 0, __LINE__);
+	DO_MALLOC(array[2] = smalloc(default_block_size ));
+	checkStats(0, 0, __LINE__);
+	DO_MALLOC(array[3] = smalloc(default_block_size));
+	checkStats(0, 0, __LINE__);
+	DO_MALLOC(array[4] = smalloc(default_block_size));
+	checkStats(0, 0, __LINE__);
+
+	for (int i = 0 ; i < default_block_size ; ++i) {
+		((char *) array[2])[i] = (char) i;
+	}
+
+	checkStats(0, 0, __LINE__);
+
+	sfree(array[3]);
+	char firstByteInFreedBlock = ((char *)array[3])[0];
+	checkStats(0, 0, __LINE__);
+	void *last2ndItem = array[2];
+	DO_MALLOC(array[2] = srealloc(array[2], default_block_size * 2));
+	checkStats(0, 0, __LINE__);
+	if (array[2] != last2ndItem) {
+		std::cout << "srealloc not on right place" << std::endl;
+	}
+	if (((char *)array[3])[0] != firstByteInFreedBlock) {
+		std::cout << "content in freed right block changed" << std::endl;
+	}
+	printMemory<Metadata3>(memory_start_addr, true);
+
+	for (int i = 0 ; i < default_block_size ; ++i) {
+		if (((char *) array[2])[i] != (char) i) {
+			std::cout << "realloc didnt keep the char a to index " << i << std::endl;
+			break;
+		}
+	}
+
+	sfree(array[1]);
+	checkStats(0, 0, __LINE__);
+	sfree(array[4]);
+	checkStats(0, 0, __LINE__);
+	DO_MALLOC(array[2] = srealloc(array[2], default_block_size * 4));
+	checkStats(0, 0, __LINE__);
+	if (array[2] != array[1]) {
+		std::cout << "srealloc not on right place" << std::endl;
+	}
+	for (int i = 0 ; i < default_block_size ; ++i) {
+		if (((char *) array[1])[i] != (char) i) {
+			std::cout << "realloc didnt copy the char a to index " << i << std::endl;
+			break;
+		}
+	}
+	expected += "|U:" + std::to_string(default_block_size);
+	expected += "|U:" + std::to_string(default_block_size * 4 + 3 * _size_meta_data()) + "|";
+	printMemory<Metadata3>(memory_start_addr, true);
+	return expected;
+}
+
 
 
 /////////////////////////////////////////////////////
@@ -724,11 +851,11 @@ bool checkFunc(std::string (*func)(void *[MAX_ALLOC]), void *array[MAX_ALLOC], s
 /////////////////////////////////////////////////////
 
 TestFunc functions[NUM_FUNC] = {testInit, allocNoFree, allocandFree, testFreeAllAndMerge, allocandFreeMerge, testRealloc, testRealloc2, testWild,
-								testSplitAndMerge, testCalloc, testBadArgs, testReallocMMap, testReallocDec , testReallocDecOverwrite , testNoRecMerge , testReallocWildLikePiazza};
+								testSplitAndMerge, testCalloc, testBadArgs, testReallocMMap, testReallocDec , testReallocDecOverwrite , testNoRecMerge , testReallocWildLikePiazza , testReallocWilderness2 ,mergeVariations};
 std::string function_names[NUM_FUNC] = {"testInit", "allocNoFree", "allocandFree", "testFreeAllAndMerge", "allocandFreeMerge", "testRealloc",
 										"testRealloc2",
 										"testWild",
-										"testSplitAndMerge", "testCalloc", "testBadArgs", "testReallocMMap", "testReallocDec" ,"testReallocDecOverwrite" ,"testNoRecMerge" ,"testReallocWildLikePiazza"};
+										"testSplitAndMerge", "testCalloc", "testBadArgs", "testReallocMMap", "testReallocDec" ,"testReallocDecOverwrite" ,"testNoRecMerge" ,"testReallocWildLikePiazza" , "testReallocWilderness2" ,"mergeVariations"};
 
 void checkStats(size_t bytes_mmap, int blocks_mmap, int line_number) {
 	updateStats<Metadata3>(memory_start_addr, current_stats, bytes_mmap, blocks_mmap);
