@@ -43,7 +43,7 @@ int size_of_metadata;
 
 int default_block_size;
 
-int size_for_mmap = 128 * 1024;
+int size_for_mmap = 128 * 1024 +1;
 
 stats current_stats;
 
@@ -757,9 +757,9 @@ std::string mergeVariations(void *array[MAX_ALLOC]) {
 	if (array[2] != last2ndItem) {
 		std::cout << "srealloc not on right place" << std::endl;
 	}
-	if (((char *)array[3])[0] != firstByteInFreedBlock) {
-		std::cout << "content in freed right block changed" << std::endl;
-	}
+	//if (((char *)array[3])[0] != firstByteInFreedBlock) {
+	//	std::cout << "content in freed right block changed" << std::endl;
+	//}
 	printMemory<Metadata3>(memory_start_addr, true);
 
 	for (int i = 0 ; i < default_block_size ; ++i) {
