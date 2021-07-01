@@ -547,23 +547,37 @@ std::string testReallocDecOverwrite(void *array[MAX_ALLOC]) {
 	DO_MALLOC(array[1] = smalloc(default_block_size * 2));
 	checkStats(0, 0, __LINE__);
 
+	DO_MALLOC(array[2] = smalloc(size_for_mmap));
+	checkStats(size_for_mmap, 1, __LINE__);
+
 	for (int i = 0 ; i < default_block_size * 2 ; ++i) {
 		((char *) array[1])[i] = (char) i;
 	}
 	for (int i = 0 ; i < default_block_size ; ++i) {
 		((char *) array[0])[i] = (char) i;
 	}
+	for (int i = 0 ; i < size_for_mmap ; ++i) {
+		((char *) array[2])[i] = (char) i;
+	}
 
-	checkStats(0, 0, __LINE__);
+	checkStats(size_for_mmap, 1, __LINE__);
 	sfree(array[0]);
 
-	checkStats(0, 0, __LINE__);
+	checkStats(size_for_mmap, 1, __LINE__);
 	DO_MALLOC(array[1] = srealloc(array[1], default_block_size * 3));
-	checkStats(0, 0, __LINE__);
+	checkStats(size_for_mmap, 1, __LINE__);
+	DO_MALLOC(array[2] = srealloc(array[2], size_for_mmap * 3));
+	checkStats(size_for_mmap*3, 1, __LINE__);
 
 	for (int i = 0 ; i < default_block_size * 2 ; ++i) {
 		if (((char *) array[1])[i] != (char) i) {
-			std::cout << "realloc didnt copy the char a to index " << i << std::endl;
+			std::cout << "realloc didnt copy the index " << i << std::endl;
+			break;
+		}
+	}
+	for (int i = 0 ; i < size_for_mmap ; ++i) {
+		if (((char *) array[2])[i] != (char) i) {
+			std::cout << "realloc didnt copy the index " << i << std::endl;
 			break;
 		}
 	}
@@ -611,6 +625,8 @@ std::string testNoRecMerge(void *array[MAX_ALLOC]) {
 	printMemory<Metadata3>(memory_start_addr, true);
 	return expected;
 }
+
+
 
 
 /////////////////////////////////////////////////////
