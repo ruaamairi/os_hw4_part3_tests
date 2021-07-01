@@ -31,7 +31,7 @@ typedef struct MallocMetadata3 {
 ///////////////////////////////////////////////////
 
 
-#define NUM_FUNC 15
+#define NUM_FUNC 16
 
 typedef std::string (*TestFunc)(void *[MAX_ALLOC]);
 
@@ -626,6 +626,42 @@ std::string testNoRecMerge(void *array[MAX_ALLOC]) {
 	return expected;
 }
 
+std::string testReallocWildLikePiazza(void *array[MAX_ALLOC]) {
+	std::string expected = "" ;
+	expected += "|F:" + std::to_string(default_block_size*4);
+	expected += "|U:" + std::to_string(default_block_size);
+	expected += "|F:" + std::to_string(default_block_size);
+	expected += "|U:" + std::to_string( default_block_size *3) + "|";
+	checkStats(0, 0, __LINE__);
+	DO_MALLOC(array[0] = smalloc(default_block_size*4));
+	checkStats(0, 0, __LINE__);
+	DO_MALLOC(array[1] = smalloc(default_block_size));
+	checkStats(0, 0, __LINE__);
+	DO_MALLOC(array[2] = smalloc(default_block_size));
+	checkStats(0, 0, __LINE__);
+	DO_MALLOC(array[3] = smalloc(default_block_size));
+
+	checkStats(0, 0, __LINE__);
+	sfree(array[0]);
+	checkStats(0, 0, __LINE__);
+	sfree(array[2]);
+	checkStats(0, 0, __LINE__);
+	for (int i = 0 ; i < default_block_size ; ++i) {
+		((char *) array[3])[i] = (char) i;
+	}
+	DO_MALLOC(array[3] = srealloc(array[3], default_block_size *3));
+	checkStats(0, 0, __LINE__);
+	for (int i = 0 ; i < default_block_size ; ++i) {
+		if (((char *) array[3])[i] != (char) i) {
+			std::cout << "realloc didnt copy the index " << i << std::endl;
+			break;
+		}
+	}
+
+	printMemory<Metadata3>(memory_start_addr, true);
+	return expected;
+}
+
 
 
 
@@ -688,11 +724,11 @@ bool checkFunc(std::string (*func)(void *[MAX_ALLOC]), void *array[MAX_ALLOC], s
 /////////////////////////////////////////////////////
 
 TestFunc functions[NUM_FUNC] = {testInit, allocNoFree, allocandFree, testFreeAllAndMerge, allocandFreeMerge, testRealloc, testRealloc2, testWild,
-								testSplitAndMerge, testCalloc, testBadArgs, testReallocMMap, testReallocDec , testReallocDecOverwrite , testNoRecMerge};
+								testSplitAndMerge, testCalloc, testBadArgs, testReallocMMap, testReallocDec , testReallocDecOverwrite , testNoRecMerge , testReallocWildLikePiazza};
 std::string function_names[NUM_FUNC] = {"testInit", "allocNoFree", "allocandFree", "testFreeAllAndMerge", "allocandFreeMerge", "testRealloc",
 										"testRealloc2",
 										"testWild",
-										"testSplitAndMerge", "testCalloc", "testBadArgs", "testReallocMMap", "testReallocDec" ,"testReallocDecOverwrite" ,"testNoRecMerge"};
+										"testSplitAndMerge", "testCalloc", "testBadArgs", "testReallocMMap", "testReallocDec" ,"testReallocDecOverwrite" ,"testNoRecMerge" ,"testReallocWildLikePiazza"};
 
 void checkStats(size_t bytes_mmap, int blocks_mmap, int line_number) {
 	updateStats<Metadata3>(memory_start_addr, current_stats, bytes_mmap, blocks_mmap);
